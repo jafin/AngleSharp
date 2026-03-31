@@ -282,9 +282,8 @@ namespace AngleSharp.Html.Parser
             }
             else
             {
-                var chars = source.ToCharArray();
-                var charSource = new CharArrayTextSource(chars, chars.Length);
-                return CreateDocument(new TextSource(charSource));
+                var memSource = new ReadOnlyMemoryTextSource(source);
+                return CreateDocument(new TextSource(memSource));
             }
         }
 
