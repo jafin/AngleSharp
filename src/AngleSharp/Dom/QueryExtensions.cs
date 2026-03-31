@@ -6,6 +6,7 @@ using AngleSharp.Text;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 
 /// <summary>
 /// Extensions for performing QuerySelector operations.
@@ -298,11 +299,11 @@ public static class QueryExtensions
     /// <param name="result">A reference to the list where to store the results.</param>
     public static void QuerySelectorAll<T>(this T elements, ISelector selector, IElement? scope, List<IElement> result) where T : class, INodeList
     {
-        var stack = new Stack<IElement>();
+        var stack = new Stack<Element>();
 
         for (var i = 0; i < elements.Length; i++)
         {
-            if (elements[i] is IElement rootElement)
+            if (elements[i] is Element rootElement)
             {
                 stack.Push(rootElement);
 
@@ -315,28 +316,13 @@ public static class QueryExtensions
                         result.Add(element);
                     }
 
-                    var childNodes = element.ChildNodes;
+                    var entries = CollectionsMarshal.AsSpan(element.ChildNodes._entries);
 
-                    if (childNodes is NodeList nodeList)
+                    for (var j = entries.Length - 1; j >= 0; j--)
                     {
-                        var length = nodeList.Length;
-                        while (length > 0)
+                        if (entries[j] is Element child)
                         {
-                            if (nodeList[--length] is IElement child)
-                            {
-                                stack.Push(child);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        var length = childNodes.Length;
-                        while (length > 0)
-                        {
-                            if (childNodes[--length] is IElement child)
-                            {
-                                stack.Push(child);
-                            }
+                            stack.Push(child);
                         }
                     }
                 }
