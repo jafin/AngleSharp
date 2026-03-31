@@ -5,6 +5,9 @@ using AngleSharp.Html.Dom;
 using AngleSharp.Text;
 using System;
 using System.Collections.Generic;
+#if NET8_0_OR_GREATER
+using System.Collections.Frozen;
+#endif
 
 /// <summary>
 /// Provides string to HTMLElement instance creation mappings.
@@ -15,7 +18,7 @@ sealed class HtmlElementFactory : IElementFactory<Document, HtmlElement>
 
     private delegate HtmlElement Creator(Document owner, String? prefix);
 
-    private readonly Dictionary<String, Creator> creators = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<String, Creator> _creatorsDict = new(StringComparer.OrdinalIgnoreCase)
     {
         { TagNames.Div, (document, prefix) => new HtmlDivElement(document, prefix) },
         { TagNames.A, (document, prefix) => new HtmlAnchorElement(document, prefix) },
@@ -155,6 +158,12 @@ sealed class HtmlElementFactory : IElementFactory<Document, HtmlElement>
         { TagNames.Bdo, (document, _) => new HtmlElement(document, TagNames.Bdo) },
         { TagNames.SelectedContent, (document, prefix) => new HtmlSelectedContentElement(document, prefix) },
     };
+
+#if NET8_0_OR_GREATER
+    private static readonly FrozenDictionary<String, Creator> creators = _creatorsDict.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+#else
+    private static readonly Dictionary<String, Creator> creators = _creatorsDict;
+#endif
 
     /// <summary>
     /// Returns a specialized HTMLElement instance for the given tag name.
