@@ -1,88 +1,81 @@
 using System;
 using System.Collections.Generic;
-using System.Net.Http;
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
 using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Configs;
 
 namespace AngleSharp.Benchmarks
 {
-    static class Html5SpecData
-    {
-        private static String _html;
-        private static readonly Object _lock = new();
-
-        public static String GetHtml()
-        {
-            if (_html is not null) return _html;
-
-            lock (_lock)
-            {
-                if (_html is not null) return _html;
-
-                using var client = new HttpClient();
-                client.DefaultRequestHeaders.UserAgent.ParseAdd("AngleSharp.Benchmarks/1.0");
-                _html = client.GetStringAsync("http://www.w3.org/TR/html5/single-page.html").GetAwaiter().GetResult();
-                Console.WriteLine($"Downloaded HTML5 spec: {_html.Length:N0} chars");
-            }
-
-            return _html;
-        }
-    }
-
-    [MemoryDiagnoser, ShortRunJob]
-    public class Html5SpecParseBenchmark
+    [MemoryDiagnoser, GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByParams), ShortRunJob]
+    public class HtmlParseBenchmark
     {
         private static readonly HtmlParser _parser = new();
-        private String _html;
 
-        [GlobalSetup]
-        public void GlobalSetup()
+        [ParamsSource(nameof(GetSources))]
+        public UrlTest UrlTest { get; set; }
+
+        public IEnumerable<UrlTest> GetSources()
         {
-            _html = Html5SpecData.GetHtml();
+            var websites = new UrlTests(".html", true);
+            websites.Include(
+                "https://www.amazon.com",
+                "https://www.reddit.com",
+                "https://www.w3.org/TR/html5/single-page.html",
+                "https://en.wikipedia.org/wiki/South_African_labour_law",
+                "https://www.time.com"
+            ).GetAwaiter().GetResult();
+            return websites.Tests;
         }
 
         [Benchmark]
         public IDocument Parse()
         {
-            return _parser.ParseDocument(_html);
+            return _parser.ParseDocument(UrlTest.Source);
         }
     }
 
-    [MemoryDiagnoser, ShortRunJob]
-    public class Html5SpecSelectorBenchmark
+    [MemoryDiagnoser, GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByParams), ShortRunJob]
+    public class HtmlSelectorBenchmark
     {
         private static readonly HtmlParser _parser = new();
         private IDocument _document;
 
+        [ParamsSource(nameof(GetSources))]
+        public UrlTest UrlTest { get; set; }
+
+        public IEnumerable<UrlTest> GetSources()
+        {
+            var websites = new UrlTests(".html", true);
+            websites.Include(
+                "https://www.amazon.com",
+                "https://www.reddit.com",
+                "https://www.w3.org/TR/html5/single-page.html",
+                "https://en.wikipedia.org/wiki/South_African_labour_law",
+                "https://www.time.com"
+            ).GetAwaiter().GetResult();
+            return websites.Tests;
+        }
+
         [GlobalSetup]
         public void GlobalSetup()
         {
-            var html = Html5SpecData.GetHtml();
-            _document = _parser.ParseDocument(html);
+            _document = _parser.ParseDocument(UrlTest.Source);
         }
-
-        [ParamsSource(nameof(GetSelectors))]
-        public String Selector { get; set; }
-
-        public IEnumerable<String> GetSelectors =>
-        [
-            "div",
-            "div p",
-            "div > p",
-            "a[href]",
-            ".note",
-            "h1, h2, h3, h4, h5, h6",
-            "p:first-child",
-            "div[class]",
-            "ul > li > a",
-            "div.example",
-        ];
 
         [Benchmark]
-        public IHtmlCollection<IElement> QuerySelectorAll()
-        {
-            return _document.QuerySelectorAll(Selector);
-        }
+        public IHtmlCollection<IElement> Div() => _document.QuerySelectorAll("div");
+
+        [Benchmark]
+        public IHtmlCollection<IElement> DivP() => _document.QuerySelectorAll("div p");
+
+        [Benchmark]
+        public IHtmlCollection<IElement> AHref() => _document.QuerySelectorAll("a[href]");
+
+        [Benchmark]
+        public IHtmlCollection<IElement> ClassNote() => _document.QuerySelectorAll(".note");
+
+        [Benchmark]
+        public IHtmlCollection<IElement> Headings() => _document.QuerySelectorAll("h1, h2, h3, h4, h5, h6");
     }
 }
