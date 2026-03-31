@@ -4,43 +4,14 @@ using AngleSharp.Css.Dom;
 using AngleSharp.Css.Parser;
 using AngleSharp.Text;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.CompilerServices;
 
 /// <summary>
 /// Extensions for performing QuerySelector operations.
 /// </summary>
 public static class QueryExtensions
 {
-    private static readonly ConcurrentDictionary<SelectorCacheKey, ISelector> _selectorCache = new();
-    private const Int32 SelectorCacheLimit = 256;
-
-    private readonly struct SelectorCacheKey : IEquatable<SelectorCacheKey>
-    {
-        public readonly ICssSelectorParser Parser;
-        public readonly String SelectorText;
-
-        public SelectorCacheKey(ICssSelectorParser parser, String selectorText)
-        {
-            Parser = parser;
-            SelectorText = selectorText;
-        }
-
-        public Boolean Equals(SelectorCacheKey other) =>
-            ReferenceEquals(Parser, other.Parser) && String.Equals(SelectorText, other.SelectorText, StringComparison.Ordinal);
-
-        public override Boolean Equals(Object? obj) => obj is SelectorCacheKey other && Equals(other);
-
-        public override Int32 GetHashCode()
-        {
-            unchecked
-            {
-                return (RuntimeHelpers.GetHashCode(Parser) * 397) ^ StringComparer.Ordinal.GetHashCode(SelectorText);
-            }
-        }
-    }
     #region Text Selector
 
     /// <summary>
@@ -495,17 +466,7 @@ public static class QueryExtensions
         if (node is not null)
         {
             var parser = node.Owner!.Context.GetService<ICssSelectorParser>()!;
-            var key = new SelectorCacheKey(parser, selectorText);
-
-            if (!_selectorCache.TryGetValue(key, out sg))
-            {
-                sg = parser.ParseSelector(selectorText) ?? throw new DomException(DomError.Syntax);
-
-                if (_selectorCache.Count < SelectorCacheLimit)
-                {
-                    _selectorCache.TryAdd(key, sg);
-                }
-            }
+            sg = parser.ParseSelector(selectorText) ?? throw new DomException(DomError.Syntax);
         }
 
         return sg;
