@@ -275,8 +275,17 @@ namespace AngleSharp.Html.Parser
 
         private HtmlDocument CreateDocument(String source)
         {
-            var textSource = new TextSource(source);
-            return CreateDocument(textSource);
+            if (_options.IsScripting)
+            {
+                var textSource = new TextSource(source);
+                return CreateDocument(textSource);
+            }
+            else
+            {
+                var chars = source.ToCharArray();
+                var charSource = new CharArrayTextSource(chars, chars.Length);
+                return CreateDocument(new TextSource(charSource));
+            }
         }
 
         private HtmlDocument CreateDocument(Stream source)

@@ -4,14 +4,43 @@ using AngleSharp.Css.Dom;
 using AngleSharp.Css.Parser;
 using AngleSharp.Text;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 
 /// <summary>
 /// Extensions for performing QuerySelector operations.
 /// </summary>
 public static class QueryExtensions
 {
+    private static readonly ConcurrentDictionary<SelectorCacheKey, ISelector> _selectorCache = new();
+    private const Int32 SelectorCacheLimit = 256;
+
+    private readonly struct SelectorCacheKey : IEquatable<SelectorCacheKey>
+    {
+        public readonly ICssSelectorParser Parser;
+        public readonly String SelectorText;
+
+        public SelectorCacheKey(ICssSelectorParser parser, String selectorText)
+        {
+            Parser = parser;
+            SelectorText = selectorText;
+        }
+
+        public Boolean Equals(SelectorCacheKey other) =>
+            ReferenceEquals(Parser, other.Parser) && String.Equals(SelectorText, other.SelectorText, StringComparison.Ordinal);
+
+        public override Boolean Equals(Object? obj) => obj is SelectorCacheKey other && Equals(other);
+
+        public override Int32 GetHashCode()
+        {
+            unchecked
+            {
+                return (RuntimeHelpers.GetHashCode(Parser) * 397) ^ StringComparer.Ordinal.GetHashCode(SelectorText);
+            }
+        }
+    }
     #region Text Selector
 
     /// <summary>
@@ -285,15 +314,40 @@ public static class QueryExtensions
     /// <param name="result">A reference to the list where to store the results.</param>
     public static void QuerySelectorAll<T>(this T elements, ISelector selector, List<IElement> result) where T : class, INodeList
     {
+        var stack = new Stack<INode>();
+
         for (var i = 0; i < elements.Length; i++)
         {
-            if (elements[i] is IElement element)
+            if (elements[i] is IElement rootElement)
             {
-                foreach (var descendantAndSelf in element.DescendantsAndSelf<IElement>())
+                stack.Push(rootElement);
+
+                while (stack.Count > 0)
                 {
-                    if (selector.Match(descendantAndSelf))
+                    var next = stack.Pop();
+
+                    if (next is IElement element && selector.Match(element))
                     {
-                        result.Add(descendantAndSelf);
+                        result.Add(element);
+                    }
+
+                    var childNodes = next.ChildNodes;
+
+                    if (childNodes is NodeList nodeList)
+                    {
+                        var length = nodeList.Length;
+                        while (length > 0)
+                        {
+                            stack.Push(nodeList[--length]);
+                        }
+                    }
+                    else
+                    {
+                        var length = childNodes.Length;
+                        while (length > 0)
+                        {
+                            stack.Push(childNodes[--length]);
+                        }
                     }
                 }
             }
@@ -422,7 +476,17 @@ public static class QueryExtensions
         if (node is not null)
         {
             var parser = node.Owner!.Context.GetService<ICssSelectorParser>()!;
-            sg = parser.ParseSelector(selectorText) ?? throw new DomException(DomError.Syntax);
+            var key = new SelectorCacheKey(parser, selectorText);
+
+            if (!_selectorCache.TryGetValue(key, out sg))
+            {
+                sg = parser.ParseSelector(selectorText) ?? throw new DomException(DomError.Syntax);
+
+                if (_selectorCache.Count < SelectorCacheLimit)
+                {
+                    _selectorCache.TryAdd(key, sg);
+                }
+            }
         }
 
         return sg;

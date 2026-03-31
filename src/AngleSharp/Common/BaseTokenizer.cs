@@ -2,6 +2,7 @@ namespace AngleSharp.Common
 {
     using AngleSharp.Text;
     using System;
+    using System.Buffers;
     using System.Collections.Generic;
     using System.Text;
 
@@ -384,6 +385,83 @@ namespace AngleSharp.Common
                 _apb!.Append(c);
                 _apb!.Append(d);
             }
+        }
+
+#if NET8_0_OR_GREATER
+        private static readonly SearchValues<Char> DataTextTerminators =
+            SearchValues.Create(['<', '&', '\0', '\r', '\n']);
+#endif
+
+        /// <summary>
+        /// Scans ahead in the underlying char array source for plain text runs,
+        /// bulk-appending characters until a DataText terminator is found.
+        /// Returns the next character that needs per-char handling.
+        /// </summary>
+        private protected Char ScanDataText()
+        {
+            if (_cats is null)
+            {
+                return GetNext();
+            }
+
+            var array = _cats.Array;
+            var index = _cats.Index;
+            var length = _cats.Length;
+
+            if (index >= length)
+            {
+                return GetNext();
+            }
+
+            var remaining = array.AsSpan(index, length - index);
+#if NET8_0_OR_GREATER
+            var found = remaining.IndexOfAny(DataTextTerminators);
+#else
+            var found = remaining.IndexOfAny('<', '&', '\0');
+            // Also check for \r and \n — these need per-char handling for position tracking
+            var nlIdx = remaining.IndexOfAny('\r', '\n');
+            if (nlIdx >= 0 && (found < 0 || nlIdx < found))
+            {
+                found = nlIdx;
+            }
+#endif
+
+            var runLength = found <= 0 ? 0 : found;
+
+            if (runLength > 0)
+            {
+                // Bulk append the plain text run
+                var run = remaining.Slice(0, runLength);
+
+                if (_apb != null)
+                {
+                    _apb.Append(run);
+                }
+                else
+                {
+#if NETSTANDARD2_0 || NET462 || NET472
+                    for (var i = 0; i < run.Length; i++)
+                    {
+                        _sbb!._sb.Append(run[i]);
+                    }
+#else
+                    _sbb!._sb.Append(run);
+#endif
+                }
+
+                // Update position tracking
+                if (!_disableElementPositionTracking)
+                {
+                    _column += (UInt16)runLength;
+                }
+
+                // Advance the source past the bulk-appended chars
+                _cats.Index = index + runLength;
+                _current = array[index + runLength - 1];
+            }
+
+            // Read the next char via normal path (either the terminator or next char)
+            return GetNext();
         }
 
         #endregion

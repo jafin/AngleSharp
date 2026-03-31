@@ -166,6 +166,41 @@ sealed class HtmlElementFactory : IElementFactory<Document, HtmlElement>
     /// <returns>The specialized HTMLElement instance.</returns>
     public HtmlElement Create(Document document, String localName, String? prefix = null, NodeFlags flags = NodeFlags.None)
     {
+        // Fast path for the most common tags — avoids dictionary hash + delegate invoke
+        if (localName.Length > 0)
+        {
+            // Tag names from the tokenizer are interned strings (reference-equal to TagNames constants)
+            // so we can use ReferenceEquals for zero-cost dispatch on the hottest tags
+            if (ReferenceEquals(localName, TagNames.Div)) return new HtmlDivElement(document, prefix);
+            if (ReferenceEquals(localName, TagNames.Span)) return new HtmlSpanElement(document, prefix);
+            if (ReferenceEquals(localName, TagNames.P)) return new HtmlParagraphElement(document, prefix);
+            if (ReferenceEquals(localName, TagNames.A)) return new HtmlAnchorElement(document, prefix);
+            if (ReferenceEquals(localName, TagNames.Li)) return new HtmlListItemElement(document, TagNames.Li, prefix);
+            if (ReferenceEquals(localName, TagNames.Td)) return new HtmlTableDataCellElement(document, prefix);
+            if (ReferenceEquals(localName, TagNames.Tr)) return new HtmlTableRowElement(document, prefix);
+            if (ReferenceEquals(localName, TagNames.Th)) return new HtmlTableHeaderCellElement(document, prefix);
+            if (ReferenceEquals(localName, TagNames.Img)) return new HtmlImageElement(document, prefix);
+            if (ReferenceEquals(localName, TagNames.Input)) return new HtmlInputElement(document, prefix);
+            if (ReferenceEquals(localName, TagNames.Br)) return new HtmlBreakRowElement(document, prefix);
+            if (ReferenceEquals(localName, TagNames.Code)) return new HtmlCodeElement(document, prefix);
+            if (ReferenceEquals(localName, TagNames.Pre)) return new HtmlPreElement(document, prefix);
+            if (ReferenceEquals(localName, TagNames.Ul)) return new HtmlUnorderedListElement(document, prefix);
+            if (ReferenceEquals(localName, TagNames.Ol)) return new HtmlOrderedListElement(document, prefix);
+            if (ReferenceEquals(localName, TagNames.Dl)) return new HtmlDefinitionListElement(document, prefix);
+            if (ReferenceEquals(localName, TagNames.Dd)) return new HtmlListItemElement(document, TagNames.Dd, prefix);
+            if (ReferenceEquals(localName, TagNames.Dt)) return new HtmlListItemElement(document, TagNames.Dt, prefix);
+            if (ReferenceEquals(localName, TagNames.H1)) return new HtmlHeadingElement(document, TagNames.H1, prefix);
+            if (ReferenceEquals(localName, TagNames.H2)) return new HtmlHeadingElement(document, TagNames.H2, prefix);
+            if (ReferenceEquals(localName, TagNames.H3)) return new HtmlHeadingElement(document, TagNames.H3, prefix);
+            if (ReferenceEquals(localName, TagNames.H4)) return new HtmlHeadingElement(document, TagNames.H4, prefix);
+            if (ReferenceEquals(localName, TagNames.H5)) return new HtmlHeadingElement(document, TagNames.H5, prefix);
+            if (ReferenceEquals(localName, TagNames.H6)) return new HtmlHeadingElement(document, TagNames.H6, prefix);
+            if (ReferenceEquals(localName, TagNames.Table)) return new HtmlTableElement(document, prefix);
+            if (ReferenceEquals(localName, TagNames.Tbody)) return new HtmlTableSectionElement(document, TagNames.Tbody, prefix);
+            if (ReferenceEquals(localName, TagNames.Thead)) return new HtmlTableSectionElement(document, TagNames.Thead, prefix);
+            if (ReferenceEquals(localName, TagNames.Tfoot)) return new HtmlTableSectionElement(document, TagNames.Tfoot, prefix);
+        }
+
         if (creators.TryGetValue(localName, out var creator))
         {
             return creator.Invoke(document, prefix);
