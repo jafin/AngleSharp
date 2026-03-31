@@ -17,7 +17,6 @@ namespace AngleSharp.Dom
 
         private readonly List<Attr> _items;
         private readonly WeakReference<Element> _owner;
-        private Dictionary<String, Attr>? _index;
 
         #endregion
 
@@ -53,11 +52,7 @@ namespace AngleSharp.Dom
 
         #region Internal Methods
 
-        internal void FastAddItem(Attr attr)
-        {
-            _items.Add(attr);
-            _index = null;
-        }
+        internal void FastAddItem(Attr attr) => _items.Add(attr);
 
         internal void RaiseChangedEvent(Attr attr, String? newValue, String? oldValue)
         {
@@ -75,7 +70,7 @@ namespace AngleSharp.Dom
                 {
                     var attr = _items[i];
                     _items.RemoveAt(i);
-                    _index = null;
+
                     attr.Container = null;
 
                     if (!suppressMutationObservers)
@@ -100,7 +95,7 @@ namespace AngleSharp.Dom
                 {
                     var attr = _items[i];
                     _items.RemoveAt(i);
-                    _index = null;
+
                     attr.Container = null;
 
                     if (!suppressMutationObservers)
@@ -124,18 +119,29 @@ namespace AngleSharp.Dom
         /// <inheritdoc />
         public IAttr? GetNamedItem(String name)
         {
-            EnsureIndex();
-            _index!.TryGetValue(name, out var attr);
-            return attr;
+            for (var i = 0; i < _items.Count; i++)
+            {
+                if (name.Is(_items[i].Name))
+                {
+                    return _items[i];
+                }
+            }
+
+            return null;
         }
 
         /// <inheritdoc />
         public IAttr? GetNamedItem(StringOrMemory name)
         {
-            var nameStr = name.ToString();
-            EnsureIndex();
-            _index!.TryGetValue(nameStr, out var attr);
-            return attr;
+            for (var i = 0; i < _items.Count; i++)
+            {
+                if (name.Is(_items[i].Name))
+                {
+                    return _items[i];
+                }
+            }
+
+            return null;
         }
 
         /// <inheritdoc />
@@ -167,14 +173,14 @@ namespace AngleSharp.Dom
                     {
                         var attr = _items[i];
                         _items[i] = proposed;
-                        _index = null;
+    
                         RaiseChangedEvent(proposed, proposed.Value, attr.Value);
                         return attr;
                     }
                 }
 
                 _items.Add(proposed);
-                _index = null;
+
                 RaiseChangedEvent(proposed, proposed.Value, null);
             }
 
@@ -197,7 +203,7 @@ namespace AngleSharp.Dom
                     {
                         var attr = _items[i];
                         _items[i] = proposed;
-                        _index = null;
+    
 
                         if (!suppressMutationObservers)
                         {
@@ -209,7 +215,7 @@ namespace AngleSharp.Dom
                 }
 
                 _items.Add(proposed);
-                _index = null;
+
 
                 if (!suppressMutationObservers)
                 {
@@ -281,24 +287,6 @@ namespace AngleSharp.Dom
             return attr;
         }
 
-        private void EnsureIndex()
-        {
-            if (_index is not null)
-            {
-                return;
-            }
-
-            var index = new Dictionary<String, Attr>(_items.Count, StringComparer.Ordinal);
-
-            for (var i = 0; i < _items.Count; i++)
-            {
-                var attr = _items[i];
-                index[attr.Name] = attr;
-            }
-
-            _index = index;
-        }
-
         #endregion
 
         #region Construction
@@ -307,10 +295,15 @@ namespace AngleSharp.Dom
         {
             get
             {
-                var nameStr = name.ToString();
-                EnsureIndex();
-                _index!.TryGetValue(nameStr, out var attr);
-                return attr;
+                for (var i = 0; i < _items.Count; i++)
+                {
+                    if (name.Is(_items[i].Name))
+                    {
+                        return _items[i];
+                    }
+                }
+
+                return null;
             }
         }
 
