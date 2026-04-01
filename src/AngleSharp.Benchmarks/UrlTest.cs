@@ -33,20 +33,39 @@ namespace AngleSharp.Benchmarks
 
                 if (!withBuffer || !File.Exists(fileName))
                 {
-                    http.DefaultRequestHeaders.UserAgent.Clear();
-                    http.DefaultRequestHeaders.UserAgent.ParseAdd(
-                        "Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.27 Safari/537.36 OPR/26.0.1656.8 (Edition beta)");
-                    var content = await http.GetAsync(uri);
-                    source = await content.Content.ReadAsStringAsync();
+                    const int maxRetries = 3;
+                    const int minValidLength = 128;
 
-                    if (withBuffer)
+                    for (var attempt = 1; attempt <= maxRetries; attempt++)
                     {
-                        File.WriteAllText(fileName, source);
+                        http.DefaultRequestHeaders.UserAgent.Clear();
+                        http.DefaultRequestHeaders.UserAgent.ParseAdd(
+                            "Mozilla/5.0 (compatible; TestBrowser/1.0; +https://github.com/anglesharp)");
+                        var content = await http.GetAsync(uri);
+                        source = await content.Content.ReadAsStringAsync();
+
+                        if (source.Length >= minValidLength)
+                            break;
+
+                        Console.WriteLine("Attempt {0}/{1} for \"{2}\" returned only {3} chars, retrying...",
+                            attempt, maxRetries, url, source.Length);
+
+                        if (attempt < maxRetries)
+                            await Task.Delay(1000 * attempt);
+                    }
+
+                    if (source.Length < minValidLength)
+                        Console.WriteLine("Warning: \"{0}\" returned only {1} chars after {2} attempts",
+                            url, source.Length, maxRetries);
+
+                    if (withBuffer && source.Length >= minValidLength)
+                    {
+                        await File.WriteAllTextAsync(fileName, source);
                     }
                 }
                 else
                 {
-                    source = File.ReadAllText(fileName);
+                    source = await File.ReadAllTextAsync(fileName);
                 }
 
                 return new UrlTest(name, source);

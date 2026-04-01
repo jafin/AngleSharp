@@ -76,7 +76,7 @@ public static class QueryExtensions
         if (sg is not null)
         {
             var result = new List<IElement>();
-            nodes.QuerySelectorAll(sg, scope as IElement, result);
+            nodes.QuerySelectorAll(sg, scope, result);
             return new HtmlCollection<IElement>(result);
         }
 
