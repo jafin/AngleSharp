@@ -299,17 +299,22 @@ public static class QueryExtensions
     /// <param name="result">A reference to the list where to store the results.</param>
     public static void QuerySelectorAll<T>(this T elements, ISelector selector, IElement? scope, List<IElement> result) where T : class, INodeList
     {
-        var stack = new Stack<Element>();
+        var stack = new Stack<Node>();
 
         for (var i = 0; i < elements.Length; i++)
         {
-            if (elements[i] is Element rootElement)
+            if (elements[i] is Node rootNode)
             {
-                stack.Push(rootElement);
+                stack.Push(rootNode);
 
                 while (stack.Count > 0)
                 {
-                    var element = stack.Pop();
+                    var node = stack.Pop();
+
+                    if (node is not Element element)
+                    {
+                        continue;
+                    }
 
                     if (selector.Match(element, scope))
                     {
@@ -320,10 +325,7 @@ public static class QueryExtensions
 
                     for (var j = entries.Length - 1; j >= 0; j--)
                     {
-                        if (entries[j] is Element child)
-                        {
-                            stack.Push(child);
-                        }
+                        stack.Push(entries[j]);
                     }
                 }
             }
