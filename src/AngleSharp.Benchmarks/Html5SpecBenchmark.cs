@@ -47,7 +47,7 @@ namespace AngleSharp.Benchmarks
         }
     }
 
-    [MemoryDiagnoser, MediumRunJob]
+    [MemoryDiagnoser, ShortRunJob, DotTraceDiagnoser]
     public class HtmlSelectorBenchmark
     {
         private static readonly HtmlParser _parser = new();
