@@ -53,6 +53,11 @@ public sealed class ReadOnlyMemoryTextSource : IReadOnlyTextSource
         }
     }
 
+    /// <summary>
+    /// Gets the underlying memory buffer.
+    /// </summary>
+    internal ReadOnlyMemory<Char> Memory => _memory;
+
     /// <ihneritdoc />
     public Char this[Int32 index] => _content != null ? _content[index] : _memory.Span[index];
 
@@ -136,8 +141,8 @@ public sealed class ReadOnlyMemoryTextSource : IReadOnlyTextSource
     /// <ihneritdoc />
     public Boolean TryGetContentLength(out Int32 length)
     {
-        length = _length;
-        return true;
+        length = 0;
+        return false;
     }
 
     #endregion
