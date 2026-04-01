@@ -1,8 +1,8 @@
-using System.Collections.Generic;
+using System;
+using System.Linq;
 using AngleSharp.Html.Parser;
 using AngleSharp.Text;
 using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Configs;
 
 #if NETFRAMEWORK
 using CsQuery;
@@ -14,19 +14,16 @@ using HtmlAgilityPack;
 
 namespace AngleSharp.Benchmarks
 {
-    using System;
-
-    [MemoryDiagnoser, GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByParams), ShortRunJob]
+    [MemoryDiagnoser, ShortRunJob]
     public class ParserBenchmark
     {
         private static readonly HtmlParser angleSharpParser = new();
+        private static readonly UrlTests _websites = CreateWebsites();
+        private UrlTest[] _sources;
 
-        public IEnumerable<UrlTest> GetSources()
+        private static UrlTests CreateWebsites()
         {
-            var websites = new UrlTests(
-                ".html",
-                true);
-
+            var websites = new UrlTests(".html", true);
             websites.Include(
                 "https://www.amazon.com",
                 "https://html.spec.whatwg.org/",
@@ -71,42 +68,55 @@ namespace AngleSharp.Benchmarks
                 "https://www.neobux.com",
                 "https://www.aliexpress.com",
                 "https://www.netflix.com",
-                // hangs HTMLAgilityPack "http://www.w3.org/TR/html5/single-page.html",
                 "http://en.wikipedia.org/wiki/South_African_labour_law").GetAwaiter().GetResult();
-
-            return websites.Tests;
+            return websites;
         }
 
-        [ParamsSource(nameof(GetSources))] public UrlTest UrlTest { get; set; }
+        [GlobalSetup]
+        public void GlobalSetup()
+        {
+            _sources = _websites.Tests.Where(t => t != null).ToArray();
+        }
 
 #if NETFRAMEWORK
         [Benchmark]
         public void CsQuery()
         {
-            var factory = new ElementFactory(DomIndexProviders.Simple);
-
-            using var stream = UrlTest.Source.ToStream();
-            factory.Parse(stream, System.Text.Encoding.UTF8);
+            foreach (var test in _sources)
+            {
+                var factory = new ElementFactory(DomIndexProviders.Simple);
+                using var stream = test.Source.ToStream();
+                factory.Parse(stream, System.Text.Encoding.UTF8);
+            }
         }
 #endif
 
         [Benchmark]
         public void HTMLAgilityPack()
         {
-            var document = new HtmlDocument();
-            document.LoadHtml(UrlTest.Source);
+            foreach (var test in _sources)
+            {
+                var document = new HtmlDocument();
+                document.LoadHtml(test.Source);
+            }
         }
 
         [Benchmark]
         public void AngleSharp()
         {
-            angleSharpParser.ParseDocument(UrlTest.Source);
+            foreach (var test in _sources)
+            {
+                angleSharpParser.ParseDocument(test.Source);
+            }
         }
 
         [Benchmark]
         public void ArrayPool()
         {
-            using var _ = angleSharpParser.ParseDocument(UrlTest.Source.AsMemory());
+            foreach (var test in _sources)
+            {
+                using var _ = angleSharpParser.ParseDocument(test.Source.AsMemory());
+            }
         }
     }
 }

@@ -58,16 +58,12 @@ namespace AngleSharp.Benchmarks
         {
             var websites = new UrlTests(".html", true);
             websites.Include(
-                //"https://www.amazon.com",
-                //"https://www.reddit.com",
                 "https://www.w3.org/TR/html5/single-page.html",
                 "https://en.wikipedia.org/wiki/South_African_labour_law",
-                //"https://www.time.com",
                 "https://github.com/trending",
                 "https://html.spec.whatwg.org/",
                 "https://developer.mozilla.org/en-US/docs/Web/HTML",
                 "https://en.wikipedia.org/wiki/Cascading_Style_Sheets"
-                //"https://www.reuters.com/"
             ).GetAwaiter().GetResult();
             return websites;
         }
