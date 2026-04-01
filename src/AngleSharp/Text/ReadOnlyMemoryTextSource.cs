@@ -141,8 +141,8 @@ public sealed class ReadOnlyMemoryTextSource : IReadOnlyTextSource
     /// <ihneritdoc />
     public Boolean TryGetContentLength(out Int32 length)
     {
-        length = 0;
-        return false;
+        length = _length;
+        return true;
     }
 
     #endregion
